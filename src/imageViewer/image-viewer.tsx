@@ -1,4 +1,3 @@
-// ImageViewer.tsx
 import React, { useRef, useEffect, useState } from 'react';
 import styled from 'styled-components';
 
@@ -51,7 +50,7 @@ const ImageViewer: React.FC = () => {
     const [brightness, setBrightness] = useState(100);
     const [saturation, setSaturation] = useState(100);
     const [contrast, setContrast] = useState(100);
-    const [hue, setHue] = useState(0); 
+    const [hue, setHue] = useState(0);
 
     const updateCanvasAndImageScale = (img: HTMLImageElement) => {
         const canvasContainer = canvasRef.current?.parentNode as HTMLElement;
@@ -84,19 +83,19 @@ const ImageViewer: React.FC = () => {
     const drawImage = () => {
         const canvas = canvasRef.current;
         if (canvas && image) {
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.save();
-            ctx.filter = `brightness(${brightness}%) saturate(${saturation}%) contrast(${contrast}%) hue-rotate(${hue}deg)`;
-            ctx.translate(canvas.width / 2, canvas.height / 2);
-            ctx.scale(flipH * scale, flipV * scale);
-            ctx.rotate(rotation * Math.PI / 180);
-            ctx.drawImage(image, -image.width / 2, -image.height / 2);
-            ctx.restore();
-          }
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.save();
+                ctx.filter = `brightness(${brightness}%) saturate(${saturation}%) contrast(${contrast}%) hue-rotate(${hue}deg)`;
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.scale(flipH * scale, flipV * scale);
+                ctx.rotate(rotation * Math.PI / 180);
+                ctx.drawImage(image, -image.width / 2, -image.height / 2);
+                ctx.restore();
+            }
         }
-      };
+    };
 
 
     const zoomIn = () => {
@@ -139,35 +138,35 @@ const ImageViewer: React.FC = () => {
 
     return (
         <Container>
-        <CanvasContainer>
-          <StyledCanvas ref={canvasRef} />
-        </CanvasContainer>
-        <div>
-          <Button onClick={zoomIn}>Zoom In</Button>
-          <Button onClick={zoomOut}>Zoom Out</Button>
-          <Button onClick={rotate}>Rotate</Button>
-          <Button onClick={flipHorizontal}>Flip Horizontal</Button>
-          <Button onClick={flipVertical}>Flip Vertical</Button>
-          <div>
-            <label>
-              Brightness:
-              <Slider value={brightness} onChange={(e) => setBrightness(parseInt(e.target.value, 10))} />
-            </label>
-            <label>
-              Saturation:
-              <Slider value={saturation} onChange={(e) => setSaturation(parseInt(e.target.value, 10))} />
-            </label>
-            <label>
-              Contrast:
-              <Slider value={contrast} onChange={(e) => setContrast(parseInt(e.target.value, 10))} />
-            </label>
-            <label>
-            Hue:
-            <HueSlider value={hue} onChange={(e) => setHue(parseInt(e.target.value, 10))} />
-          </label>
-          </div>
-        </div>
-      </Container>
+            <CanvasContainer>
+                <StyledCanvas ref={canvasRef} />
+            </CanvasContainer>
+            <div>
+                <Button onClick={zoomIn}>Zoom In</Button>
+                <Button onClick={zoomOut}>Zoom Out</Button>
+                <Button onClick={rotate}>Rotate</Button>
+                <Button onClick={flipHorizontal}>Flip Horizontal</Button>
+                <Button onClick={flipVertical}>Flip Vertical</Button>
+                <div>
+                    <label>
+                        Brightness:
+                        <Slider value={brightness} onChange={(e) => setBrightness(parseInt(e.target.value, 10))} />
+                    </label>
+                    <label>
+                        Saturation:
+                        <Slider value={saturation} onChange={(e) => setSaturation(parseInt(e.target.value, 10))} />
+                    </label>
+                    <label>
+                        Contrast:
+                        <Slider value={contrast} onChange={(e) => setContrast(parseInt(e.target.value, 10))} />
+                    </label>
+                    <label>
+                        Hue:
+                        <HueSlider value={hue} onChange={(e) => setHue(parseInt(e.target.value, 10))} />
+                    </label>
+                </div>
+            </div>
+        </Container>
     );
 };
 
