@@ -51,6 +51,31 @@ const ImageViewer: React.FC = () => {
     const [saturation, setSaturation] = useState(100);
     const [contrast, setContrast] = useState(100);
     const [hue, setHue] = useState(0);
+    console.log(canvasRef.current?.height)
+
+    const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files ? event.target.files[0] : null;
+        if (file && file.type.startsWith('image/')) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+              setImage(img);
+              setScale(1);
+              setRotation(0);
+              setFlipH(1);
+              setFlipV(1);
+              setBrightness(100);
+              setSaturation(100);
+              setContrast(100);
+              setHue(0);
+              updateCanvasAndImageScale(img);
+            };
+            img.src = e.target?.result as string;
+          };
+          reader.readAsDataURL(file);
+        }
+      };
 
     const updateCanvasAndImageScale = (img: HTMLImageElement) => {
         const canvasContainer = canvasRef.current?.parentNode as HTMLElement;
@@ -60,15 +85,6 @@ const ImageViewer: React.FC = () => {
         setScale(newScale);
         setCanvasSize(img, newScale, rotation);
     };
-
-    useEffect(() => {
-        const img = new Image();
-        img.onload = () => {
-            setImage(img);
-            updateCanvasAndImageScale(img);
-        };
-        img.src = 'https://i.etsystatic.com/30702667/r/il/57e8eb/4509784706/il_1588xN.4509784706_4lxd.jpg'; // Replace with your image path
-    }, []);
 
     const setCanvasSize = (img: HTMLImageElement, scale: number, rotation: number) => {
         const canvas = canvasRef.current;
@@ -138,6 +154,9 @@ const ImageViewer: React.FC = () => {
 
     return (
         <Container>
+            <div>
+                <input type="file" accept="image/*" onChange={handleImageUpload} />
+            </div>
             <CanvasContainer>
                 <StyledCanvas ref={canvasRef} />
             </CanvasContainer>
