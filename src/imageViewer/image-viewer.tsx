@@ -44,8 +44,18 @@ const CropRect = styled.div`
   position: absolute;
 `;
 
+const Thumbnail = styled.img`
+    border: 1px solid #ccc;
+    width: 100px; // Set thumbnail size
+    height: 100px;
+    object-fit: cover; // This ensures the image covers the thumbnail area
+`;
+
+
 const ImageViewer: React.FC = () => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const [thumbnailSrc, setThumbnailSrc] = useState('');
+
     const [imageFormat, setImageFormat] = useState('image/png'); // Default format
     const [scale, setScale] = useState(1);
     const [rotation, setRotation] = useState(0);
@@ -114,6 +124,7 @@ const ImageViewer: React.FC = () => {
                 ctx.rotate(rotation * Math.PI / 180);
                 ctx.drawImage(image, -image.width / 2, -image.height / 2);
                 ctx.restore();
+                updateThumbnail();
             }
         }
     };
@@ -153,28 +164,28 @@ const ImageViewer: React.FC = () => {
 
     const startCrop = (event: React.MouseEvent) => {
         if (canvasRef.current) {
-          const canvasRect = canvasRef.current.getBoundingClientRect();
-        
-          const x = (event.clientX - canvasRect.left + window.scrollX) / (canvasRect.width / canvasRef.current.width);
-          const y = (event.clientY - canvasRect.top + window.scrollY) / (canvasRect.height / canvasRef.current.height);
-      
-          setCropStart({ x, y });
-          setCropEnd({ x, y });
-          setIsCropping(true);
-          setShowCropRect(true);
+            const canvasRect = canvasRef.current.getBoundingClientRect();
+
+            const x = (event.clientX - canvasRect.left + window.scrollX) / (canvasRect.width / canvasRef.current.width);
+            const y = (event.clientY - canvasRect.top + window.scrollY) / (canvasRect.height / canvasRef.current.height);
+
+            setCropStart({ x, y });
+            setCropEnd({ x, y });
+            setIsCropping(true);
+            setShowCropRect(true);
         }
-      };
-      
-      const updateCrop = (event: React.MouseEvent) => {
+    };
+
+    const updateCrop = (event: React.MouseEvent) => {
         if (isCropping && canvasRef.current) {
-          const canvasRect = canvasRef.current.getBoundingClientRect();
-          
-          const x = (event.clientX - canvasRect.left + window.scrollX) / (canvasRect.width / canvasRef.current.width);
-          const y = (event.clientY - canvasRect.top + window.scrollY) / (canvasRect.height / canvasRef.current.height);
-      
-          setCropEnd({ x, y });
+            const canvasRect = canvasRef.current.getBoundingClientRect();
+
+            const x = (event.clientX - canvasRect.left + window.scrollX) / (canvasRect.width / canvasRef.current.width);
+            const y = (event.clientY - canvasRect.top + window.scrollY) / (canvasRect.height / canvasRef.current.height);
+
+            setCropEnd({ x, y });
         }
-      };
+    };
 
     const endCrop = () => {
         setIsCropping(false);
@@ -216,17 +227,25 @@ const ImageViewer: React.FC = () => {
         if (canvas) {
             // Use the stored image format for the data URL
             const imageURL = canvas.toDataURL(imageFormat);
-    
+
             const downloadLink = document.createElement("a");
             downloadLink.download = "edited-image"; // You can add a default name
-    
+
             // Append the file extension based on the format
             downloadLink.download += imageFormat === 'image/jpeg' ? '.jpg' : '.png';
-    
+
             downloadLink.href = imageURL;
             document.body.appendChild(downloadLink);
             downloadLink.click();
             document.body.removeChild(downloadLink);
+        }
+    };
+
+    const updateThumbnail = () => {
+        const canvas = canvasRef.current;
+        if (canvas) {
+            // Get the data URL of the canvas and set it as the thumbnail source
+            setThumbnailSrc(canvas.toDataURL());
         }
     };
 
@@ -247,9 +266,9 @@ const ImageViewer: React.FC = () => {
                 onMouseUp={endCrop}
                 onMouseLeave={endCrop}
             >
-                
-                    <StyledCanvas ref={canvasRef} />
-                    {showCropRect && <CropRect style={getCropRectStyle()} />}
+
+                <StyledCanvas ref={canvasRef} />
+                {showCropRect && <CropRect style={getCropRectStyle()} />}
 
             </CanvasContainer>
             <div>
@@ -276,6 +295,8 @@ const ImageViewer: React.FC = () => {
                         Hue:
                         <HueSlider value={hue} onChange={(e) => setHue(parseInt(e.target.value, 10))} />
                     </label>
+                    <Thumbnail src={thumbnailSrc} />
+
                 </div>
             </div>
             <Button onClick={downloadImage}>Download Image</Button>
