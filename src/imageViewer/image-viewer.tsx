@@ -7,7 +7,6 @@ const Container = styled.div`
   align-items: center;
   justify-content: center;
   background-color: #f0f0f0;
-  padding: 20px;
 `;
 
 const CanvasContainer = styled.div`
@@ -18,12 +17,12 @@ const CanvasContainer = styled.div`
   max-height: 400px; // Maximum height
   border: 1px solid #ccc;
   background: gray;
-  display: flex;
+  position: relative; // Needed for CropRect positioning
 `;
 
 const StyledCanvas = styled.canvas`
-  background-color: #fff;
-  margin:auto;
+  background-color: gray;
+  border: 1px;
 `;
 
 const Button = styled.button`
@@ -40,8 +39,14 @@ const HueSlider = styled.input.attrs({ type: 'range', min: -180, max: 180, step:
   margin: 10px;
 `;
 
+const CropRect = styled.div`
+  border: 2px dashed black;
+  position: absolute;
+`;
+
 const ImageViewer: React.FC = () => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const [imageFormat, setImageFormat] = useState('image/png'); // Default format
     const [scale, setScale] = useState(1);
     const [rotation, setRotation] = useState(0);
     const [image, setImage] = useState<HTMLImageElement | null>(null);
@@ -51,31 +56,31 @@ const ImageViewer: React.FC = () => {
     const [saturation, setSaturation] = useState(100);
     const [contrast, setContrast] = useState(100);
     const [hue, setHue] = useState(0);
+
+    // Additional state for cropping
+    const [isCropping, setIsCropping] = useState(false);
+    const [cropStart, setCropStart] = useState({ x: 0, y: 0 });
+    const [cropEnd, setCropEnd] = useState({ x: 0, y: 0 });
+    const [showCropRect, setShowCropRect] = useState(false);
+
     console.log(canvasRef.current?.height)
 
     const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files ? event.target.files[0] : null;
         if (file && file.type.startsWith('image/')) {
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            const img = new Image();
-            img.onload = () => {
-              setImage(img);
-              setScale(1);
-              setRotation(0);
-              setFlipH(1);
-              setFlipV(1);
-              setBrightness(100);
-              setSaturation(100);
-              setContrast(100);
-              setHue(0);
-              updateCanvasAndImageScale(img);
+            setImageFormat(file.type);
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    setImage(img);
+                    updateCanvasAndImageScale(img);
+                };
+                img.src = e.target?.result as string;
             };
-            img.src = e.target?.result as string;
-          };
-          reader.readAsDataURL(file);
+            reader.readAsDataURL(file);
         }
-      };
+    };
 
     const updateCanvasAndImageScale = (img: HTMLImageElement) => {
         const canvasContainer = canvasRef.current?.parentNode as HTMLElement;
@@ -146,6 +151,85 @@ const ImageViewer: React.FC = () => {
         setFlipV(flipV * -1);
     };
 
+    const startCrop = (event: React.MouseEvent) => {
+        if (canvasRef.current) {
+          const canvasRect = canvasRef.current.getBoundingClientRect();
+        
+          const x = (event.clientX - canvasRect.left + window.scrollX) / (canvasRect.width / canvasRef.current.width);
+          const y = (event.clientY - canvasRect.top + window.scrollY) / (canvasRect.height / canvasRef.current.height);
+      
+          setCropStart({ x, y });
+          setCropEnd({ x, y });
+          setIsCropping(true);
+          setShowCropRect(true);
+        }
+      };
+      
+      const updateCrop = (event: React.MouseEvent) => {
+        if (isCropping && canvasRef.current) {
+          const canvasRect = canvasRef.current.getBoundingClientRect();
+          
+          const x = (event.clientX - canvasRect.left + window.scrollX) / (canvasRect.width / canvasRef.current.width);
+          const y = (event.clientY - canvasRect.top + window.scrollY) / (canvasRect.height / canvasRef.current.height);
+      
+          setCropEnd({ x, y });
+        }
+      };
+
+    const endCrop = () => {
+        setIsCropping(false);
+    };
+
+    const performCrop = () => {
+        if (canvasRef.current && image) {
+            const ctx = canvasRef.current.getContext('2d');
+            if (ctx) {
+                // Calculate the crop dimensions
+                const cropWidth = cropEnd.x - cropStart.x;
+                const cropHeight = cropEnd.y - cropStart.y;
+                const croppedImage = ctx.getImageData(cropStart.x, cropStart.y, cropWidth, cropHeight);
+
+                // Update canvas size to match the cropped area
+                canvasRef.current.width = cropWidth;
+                canvasRef.current.height = cropHeight;
+
+                // Draw the cropped image
+                ctx.putImageData(croppedImage, 0, 0);
+                setShowCropRect(false); // Hide the crop rectangle
+            }
+        }
+    };
+
+    const getCropRectStyle = () => {
+        const width = cropEnd.x - cropStart.x;
+        const height = cropEnd.y - cropStart.y;
+        return {
+            left: `${cropStart.x}px`,
+            top: `${cropStart.y}px`,
+            width: `${width}px`,
+            height: `${height}px`
+        };
+    };
+
+    const downloadImage = () => {
+        const canvas = canvasRef.current;
+        if (canvas) {
+            // Use the stored image format for the data URL
+            const imageURL = canvas.toDataURL(imageFormat);
+    
+            const downloadLink = document.createElement("a");
+            downloadLink.download = "edited-image"; // You can add a default name
+    
+            // Append the file extension based on the format
+            downloadLink.download += imageFormat === 'image/jpeg' ? '.jpg' : '.png';
+    
+            downloadLink.href = imageURL;
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        }
+    };
+
     useEffect(() => {
         if (image) {
             drawImage();
@@ -157,10 +241,19 @@ const ImageViewer: React.FC = () => {
             <div>
                 <input type="file" accept="image/*" onChange={handleImageUpload} />
             </div>
-            <CanvasContainer>
-                <StyledCanvas ref={canvasRef} />
+            <CanvasContainer
+                onMouseDown={startCrop}
+                onMouseMove={updateCrop}
+                onMouseUp={endCrop}
+                onMouseLeave={endCrop}
+            >
+                
+                    <StyledCanvas ref={canvasRef} />
+                    {showCropRect && <CropRect style={getCropRectStyle()} />}
+
             </CanvasContainer>
             <div>
+                <Button onClick={performCrop}>Crop</Button>
                 <Button onClick={zoomIn}>Zoom In</Button>
                 <Button onClick={zoomOut}>Zoom Out</Button>
                 <Button onClick={rotate}>Rotate</Button>
@@ -185,6 +278,7 @@ const ImageViewer: React.FC = () => {
                     </label>
                 </div>
             </div>
+            <Button onClick={downloadImage}>Download Image</Button>
         </Container>
     );
 };
