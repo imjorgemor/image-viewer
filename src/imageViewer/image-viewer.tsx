@@ -18,11 +18,13 @@ const CanvasContainer = styled.div`
   border: 1px solid #ccc;
   background: gray;
   position: relative; // Needed for CropRect positioning
+  display: flex;
 `;
 
 const StyledCanvas = styled.canvas`
   background-color: gray;
   border: 1px;
+  margin: auto;
 `;
 
 const Button = styled.button`
@@ -37,11 +39,6 @@ const Slider = styled.input.attrs({ type: 'range', min: 0, max: 200, step: 1 })`
 const HueSlider = styled.input.attrs({ type: 'range', min: -180, max: 180, step: 1 })`
   width: 300px;
   margin: 10px;
-`;
-
-const CropRect = styled.div`
-  border: 2px dashed black;
-  position: absolute;
 `;
 
 const Thumbnail = styled.img`
@@ -67,13 +64,94 @@ const ImageViewer: React.FC = () => {
     const [contrast, setContrast] = useState(100);
     const [hue, setHue] = useState(0);
 
-    // Additional state for cropping
-    const [isCropping, setIsCropping] = useState(false);
-    const [cropStart, setCropStart] = useState({ x: 0, y: 0 });
-    const [cropEnd, setCropEnd] = useState({ x: 0, y: 0 });
-    const [showCropRect, setShowCropRect] = useState(false);
+    const [isSelecting, setIsSelecting] = useState<boolean>(false);
+    const [selectionRect, setSelectionRect] = useState<{ startX: number; startY: number; width: number; height: number }>({ startX: 0, startY: 0, width: 0, height: 0 });
 
-    console.log(canvasRef.current?.height)
+    const startCrop = (e: React.MouseEvent<HTMLCanvasElement>) => {
+        setIsSelecting(true);
+        const rect = canvasRef.current!.getBoundingClientRect();
+        const startX = e.clientX - rect.left;
+        const startY = e.clientY - rect.top;
+        setSelectionRect({ startX, startY, width: 0, height: 0 });
+    };
+
+    const continueCrop = (e: React.MouseEvent<HTMLCanvasElement>) => {
+        if (!isSelecting) return;
+        const rect = canvasRef.current!.getBoundingClientRect();
+        const currentX = e.clientX - rect.left;
+        const currentY = e.clientY - rect.top;
+        const width = currentX - selectionRect.startX;
+        const height = currentY - selectionRect.startY;
+        setSelectionRect({ ...selectionRect, width, height });
+        drawSelectionRect();
+    };
+
+    const endCrop = () => {
+        if (!isSelecting) return;
+        setIsSelecting(false);
+        // rest of the endCrop implementation
+    };
+
+    const drawSelectionRect = () => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        // Redraw the image first to clear any previous selection rectangle
+        drawImage();
+
+        // Draw the selection rectangle
+        ctx.strokeStyle = 'rgba(0, 120, 215, 0.7)'; // Blue color for the rectangle
+        ctx.lineWidth = 1;
+        ctx.strokeRect(selectionRect.startX, selectionRect.startY, selectionRect.width, selectionRect.height);
+    };
+
+    const cropImage = () => {
+        const canvas = canvasRef.current;
+        if (!canvas || !image) return;
+    
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+    
+        // Calculate the actual crop dimensions based on the scale
+        const scaleX = image.width / canvas.width;
+        const scaleY = image.height / canvas.height;
+        const cropX = selectionRect.startX * scaleX;
+        const cropY = selectionRect.startY * scaleY;
+        const cropWidth = selectionRect.width * scaleX;
+        const cropHeight = selectionRect.height * scaleY;
+    
+        // Create a new image with the cropped area
+        const croppedImg = document.createElement('canvas');
+        croppedImg.width = cropWidth;
+        croppedImg.height = cropHeight;
+        const croppedCtx = croppedImg.getContext('2d');
+        if (!croppedCtx) return;
+    
+        croppedCtx.drawImage(image, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+    
+        // Update the main canvas with the cropped image
+        canvas.width = cropWidth;
+        canvas.height = cropHeight;
+        ctx.drawImage(croppedImg, 0, 0, cropWidth, cropHeight);
+    
+        // Update the image state to the cropped image
+        const newImage = new Image();
+        newImage.src = canvas.toDataURL();
+        setImage(newImage);
+    
+        // Reset cropping states
+        setIsSelecting(false);
+        setSelectionRect({ startX: 0, startY: 0, width: 0, height: 0 });
+    };
+
+
+
+
+
+
 
     const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files ? event.target.files[0] : null;
@@ -124,7 +202,7 @@ const ImageViewer: React.FC = () => {
                 ctx.rotate(rotation * Math.PI / 180);
                 ctx.drawImage(image, -image.width / 2, -image.height / 2);
                 ctx.restore();
-                updateThumbnail();
+
             }
         }
     };
@@ -162,66 +240,6 @@ const ImageViewer: React.FC = () => {
         setFlipV(flipV * -1);
     };
 
-    const startCrop = (event: React.MouseEvent) => {
-        if (canvasRef.current) {
-            const canvasRect = canvasRef.current.getBoundingClientRect();
-
-            const x = (event.clientX - canvasRect.left + window.scrollX) / (canvasRect.width / canvasRef.current.width);
-            const y = (event.clientY - canvasRect.top + window.scrollY) / (canvasRect.height / canvasRef.current.height);
-
-            setCropStart({ x, y });
-            setCropEnd({ x, y });
-            setIsCropping(true);
-            setShowCropRect(true);
-        }
-    };
-
-    const updateCrop = (event: React.MouseEvent) => {
-        if (isCropping && canvasRef.current) {
-            const canvasRect = canvasRef.current.getBoundingClientRect();
-
-            const x = (event.clientX - canvasRect.left + window.scrollX) / (canvasRect.width / canvasRef.current.width);
-            const y = (event.clientY - canvasRect.top + window.scrollY) / (canvasRect.height / canvasRef.current.height);
-
-            setCropEnd({ x, y });
-        }
-    };
-
-    const endCrop = () => {
-        setIsCropping(false);
-    };
-
-    const performCrop = () => {
-        if (canvasRef.current && image) {
-            const ctx = canvasRef.current.getContext('2d');
-            if (ctx) {
-                // Calculate the crop dimensions
-                const cropWidth = cropEnd.x - cropStart.x;
-                const cropHeight = cropEnd.y - cropStart.y;
-                const croppedImage = ctx.getImageData(cropStart.x, cropStart.y, cropWidth, cropHeight);
-
-                // Update canvas size to match the cropped area
-                canvasRef.current.width = cropWidth;
-                canvasRef.current.height = cropHeight;
-
-                // Draw the cropped image
-                ctx.putImageData(croppedImage, 0, 0);
-                setShowCropRect(false); // Hide the crop rectangle
-            }
-        }
-    };
-
-    const getCropRectStyle = () => {
-        const width = cropEnd.x - cropStart.x;
-        const height = cropEnd.y - cropStart.y;
-        return {
-            left: `${cropStart.x}px`,
-            top: `${cropStart.y}px`,
-            width: `${width}px`,
-            height: `${height}px`
-        };
-    };
-
     const downloadImage = () => {
         const canvas = canvasRef.current;
         if (canvas) {
@@ -252,6 +270,7 @@ const ImageViewer: React.FC = () => {
     useEffect(() => {
         if (image) {
             drawImage();
+            updateThumbnail();
         }
     }, [scale, rotation, image, flipH, flipV, brightness, saturation, contrast, hue]);
 
@@ -261,18 +280,16 @@ const ImageViewer: React.FC = () => {
                 <input type="file" accept="image/*" onChange={handleImageUpload} />
             </div>
             <CanvasContainer
-                onMouseDown={startCrop}
-                onMouseMove={updateCrop}
-                onMouseUp={endCrop}
-                onMouseLeave={endCrop}
+
             >
 
-                <StyledCanvas ref={canvasRef} />
-                {showCropRect && <CropRect style={getCropRectStyle()} />}
+                <StyledCanvas ref={canvasRef} onMouseDown={startCrop} onMouseMove={continueCrop} onMouseUp={endCrop} />
+
 
             </CanvasContainer>
             <div>
-                <Button onClick={performCrop}>Crop</Button>
+                <Button onClick={cropImage}>Crop Image</Button>
+
                 <Button onClick={zoomIn}>Zoom In</Button>
                 <Button onClick={zoomOut}>Zoom Out</Button>
                 <Button onClick={rotate}>Rotate</Button>
